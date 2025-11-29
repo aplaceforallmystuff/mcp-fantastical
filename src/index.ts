@@ -189,17 +189,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           addImmediately?: boolean;
         };
 
-        // Build the parse sentence with optional parameters
-        let fullSentence = sentence;
+        // Build URL with parameters
+        const params = new URLSearchParams();
+        params.append("s", sentence);
+        if (addImmediately) {
+          params.append("add", "1");
+        }
         if (calendar) {
-          fullSentence += ` /${calendar}`;
+          params.append("calendarName", calendar);
         }
         if (notes) {
-          fullSentence += ` /note ${notes}`;
+          params.append("n", notes);
         }
 
-        const addFlag = addImmediately ? " with add immediately" : "";
-        const script = `tell application "Fantastical" to parse sentence "${fullSentence.replace(/"/g, '\\"')}"${addFlag}`;
+        const url = `x-fantastical3://parse?${params.toString()}`;
+        const script = `do shell script "open '${url}'"`;
 
         await runAppleScript(script);
 
@@ -218,25 +222,28 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "fantastical_get_today": {
         // Get events using Calendar app (Fantastical syncs with it)
-        const today = new Date();
-        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-
+        // Use current date as reference to avoid locale parsing issues
         const script = `
 set output to ""
+set todayStart to current date
+set hours of todayStart to 0
+set minutes of todayStart to 0
+set seconds of todayStart to 0
+set todayEnd to todayStart + (1 * days)
+
 tell application "Calendar"
-  set todayStart to date "${startOfDay.toLocaleDateString("en-US")}"
-  set todayEnd to date "${endOfDay.toLocaleDateString("en-US")}"
   repeat with cal in calendars
     set calName to name of cal
-    set calEvents to (every event of cal whose start date >= todayStart and start date < todayEnd)
-    repeat with evt in calEvents
-      set evtTitle to summary of evt
-      set evtStart to start date of evt
-      set evtEnd to end date of evt
-      set evtLoc to location of evt
-      set output to output & calName & "|" & evtTitle & "|" & (evtStart as string) & "|" & (evtEnd as string) & "|" & evtLoc & "\\n"
-    end repeat
+    try
+      set calEvents to (every event of cal whose start date >= todayStart and start date < todayEnd)
+      repeat with evt in calEvents
+        set evtTitle to summary of evt
+        set evtStart to start date of evt
+        set evtEnd to end date of evt
+        set evtLoc to location of evt
+        set output to output & calName & "|" & evtTitle & "|" & (evtStart as string) & "|" & (evtEnd as string) & "|" & evtLoc & "\\n"
+      end repeat
+    end try
   end repeat
 end tell
 return output`;
@@ -255,7 +262,7 @@ return output`;
           content: [{
             type: "text",
             text: JSON.stringify({
-              date: today.toISOString().split("T")[0],
+              date: new Date().toISOString().split("T")[0],
               count: events.length,
               events,
             }, null, 2),
@@ -267,24 +274,29 @@ return output`;
         const { days = 7 } = args as { days?: number };
 
         const today = new Date();
-        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
         const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + days);
 
         const script = `
 set output to ""
+set rangeStart to current date
+set hours of rangeStart to 0
+set minutes of rangeStart to 0
+set seconds of rangeStart to 0
+set rangeEnd to rangeStart + (${days} * days)
+
 tell application "Calendar"
-  set rangeStart to date "${startOfDay.toLocaleDateString("en-US")}"
-  set rangeEnd to date "${endDate.toLocaleDateString("en-US")}"
   repeat with cal in calendars
     set calName to name of cal
-    set calEvents to (every event of cal whose start date >= rangeStart and start date < rangeEnd)
-    repeat with evt in calEvents
-      set evtTitle to summary of evt
-      set evtStart to start date of evt
-      set evtEnd to end date of evt
-      set evtLoc to location of evt
-      set output to output & calName & "|" & evtTitle & "|" & (evtStart as string) & "|" & (evtEnd as string) & "|" & evtLoc & "\\n"
-    end repeat
+    try
+      set calEvents to (every event of cal whose start date >= rangeStart and start date < rangeEnd)
+      repeat with evt in calEvents
+        set evtTitle to summary of evt
+        set evtStart to start date of evt
+        set evtEnd to end date of evt
+        set evtLoc to location of evt
+        set output to output & calName & "|" & evtTitle & "|" & (evtStart as string) & "|" & (evtEnd as string) & "|" & evtLoc & "\\n"
+      end repeat
+    end try
   end repeat
 end tell
 return output`;
@@ -304,7 +316,7 @@ return output`;
             type: "text",
             text: JSON.stringify({
               range: {
-                start: startOfDay.toISOString().split("T")[0],
+                start: today.toISOString().split("T")[0],
                 end: endDate.toISOString().split("T")[0],
                 days,
               },

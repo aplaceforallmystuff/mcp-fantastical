@@ -1,0 +1,45 @@
+{
+  "name": "mcp-fantastical",
+  "version": "1.0.0",
+  "description": "MCP server for Fantastical calendar app - create events, view calendar, and manage schedules",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "bin": {
+    "mcp-fantastical": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "fantastical",
+    "calendar",
+    "model-context-protocol",
+    "claude",
+    "ai",
+    "applescript",
+    "macos"
+  ],
+  "author": "Jim Christian",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jmchristian/mcp-fantastical.git"
+  }
+}

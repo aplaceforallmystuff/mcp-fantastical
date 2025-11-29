@@ -171,4 +171,4 @@ MIT - see [LICENSE](LICENSE) for details.
 
 - [Fantastical](https://flexibits.com/fantastical) - Official Fantastical website
 - [Model Context Protocol](https://modelcontextprotocol.io) - MCP specification
-- [GitHub Repository](https://github.com/jmchristian/mcp-fantastical)
+- [GitHub Repository](https://github.com/aplaceforallmystuff/mcp-fantastical)

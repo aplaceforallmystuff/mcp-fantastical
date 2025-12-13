@@ -1,7 +1,7 @@
 {
   "name": "mcp-fantastical",
   "version": "1.0.3",
-  "mcpName": "io.github.jmchristian/mcp-fantastical",
+  "mcpName": "io.github.aplaceforallmystuff/mcp-fantastical",
   "description": "MCP server for Fantastical calendar app - create events, view calendar, and manage schedules",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

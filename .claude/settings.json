@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build)",
+      "Bash(npm test)",
+      "Bash(npm run lint)",
+      "Bash(node dist/index.js:*)",
+      "Bash(timeout 10 node dist/index.js)",
+      "Bash(npm version:*)",
+      "Bash(npm publish)"
+    ]
+  }
+}

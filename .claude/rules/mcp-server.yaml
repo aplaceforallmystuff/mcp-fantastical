@@ -1,0 +1,107 @@
+# MCP Server Rules - WYSIWID Pattern
+# Specific rules for Model Context Protocol servers
+
+name: MCP Server Standards
+version: 1.0.0
+applies_to: MCP server projects
+
+structure:
+  required_files:
+    - path: src/index.ts
+      description: Main entry point with Server setup
+    - path: package.json
+      required_fields:
+        - name (unscoped)
+        - version
+        - description
+        - main
+        - bin
+        - author
+        - license
+        - repository
+    - path: README.md
+      required_sections:
+        - Overview
+        - Installation
+        - Configuration
+        - Available Tools
+        - Claude Desktop Setup
+        - Claude Code Setup
+    - path: CHANGELOG.md
+    - path: LICENSE
+
+  recommended_structure:
+    src/:
+      - index.ts: Server entry point
+      - tools/: Tool implementations
+      - types.ts: TypeScript types
+      - utils/: Helper functions
+
+tool_definitions:
+  - id: schema-completeness
+    description: Every tool must have complete schema
+    required_fields:
+      - name
+      - description
+      - inputSchema (with properties and required)
+
+  - id: description-quality
+    description: Tool descriptions should be actionable
+    guidance: |
+      Good: "Search for TV series by name. Returns matching results with IDs for use with other tools."
+      Bad: "Search series"
+
+  - id: parameter-documentation
+    description: Each parameter needs description
+    check: All inputSchema.properties have description field
+
+  - id: error-handling
+    description: Tools must handle errors gracefully
+    requirements:
+      - Try/catch around external calls
+      - Meaningful error messages
+      - No exposed stack traces to users
+
+environment_variables:
+  - id: env-documentation
+    description: All required env vars must be documented in README
+    format: |
+      | Variable | Required | Description |
+      |----------|----------|-------------|
+      | SERVICE_API_KEY | Yes | API key for service |
+
+  - id: env-validation
+    description: Validate env vars at startup, not at tool call
+    location: Server initialization
+
+  - id: no-hardcoded-secrets
+    description: Never hardcode API keys or credentials
+    check: No literal key patterns in source code
+
+publishing:
+  - id: npm-metadata
+    required:
+      name: Unscoped (e.g., "mcp-service", not "@user/mcp-service")
+      author: "Jim Christian"
+      license: "MIT"
+      repository: "https://github.com/aplaceforallmystuff/{repo}"
+
+  - id: version-sync
+    description: package.json version must match git tag
+    check: npm version matches latest git tag
+
+  - id: build-before-publish
+    description: Always build and test before npm publish
+    workflow:
+      - npm run build
+      - npm test
+      - npm publish
+
+testing:
+  - id: tool-coverage
+    description: Each tool should have at least one test
+    check: Test file exists for each tool
+
+  - id: mock-external
+    description: Mock external API calls in tests
+    reason: Tests should be deterministic and not require credentials

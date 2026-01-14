@@ -1,0 +1,67 @@
+# Commit Standards - WYSIWID Pattern
+# Claude excels at pattern recognition in declarative YAML
+
+name: Commit Standards
+version: 1.0.0
+applies_to: git commits
+
+rules:
+  - id: conventional-format
+    description: All commits must follow conventional commit format
+    pattern: "^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\\(.+\\))?: .+"
+    examples:
+      valid:
+        - "feat(api): add webhook endpoint"
+        - "fix: handle null response gracefully"
+        - "docs: update installation instructions"
+        - "refactor(auth): simplify token validation"
+      invalid:
+        - "Updated stuff"
+        - "WIP"
+        - "fix bug"
+
+  - id: no-wip-commits
+    description: WIP commits should be squashed before merge
+    forbidden_patterns:
+      - "^WIP"
+      - "^wip"
+      - "^TODO"
+    action: Squash or reword before pushing
+
+  - id: descriptive-messages
+    description: Commit messages should explain why, not just what
+    min_length: 10
+    guidance: |
+      Good: "fix(auth): prevent token expiry during long sessions"
+      Bad: "fix auth"
+
+  - id: no-merge-commits
+    description: Prefer rebase over merge for cleaner history
+    forbidden_patterns:
+      - "^Merge branch"
+      - "^Merge pull request"
+    exceptions:
+      - Release branches
+      - Protected branches
+
+types:
+  feat: New feature for users
+  fix: Bug fix for users
+  docs: Documentation only changes
+  style: Formatting, whitespace (no code change)
+  refactor: Code change that neither fixes bug nor adds feature
+  perf: Performance improvement
+  test: Adding or updating tests
+  build: Build system or dependencies
+  ci: CI/CD configuration
+  chore: Maintenance tasks
+  revert: Reverting previous commits
+
+scopes:
+  description: Optional scope indicates area affected
+  examples:
+    - api
+    - auth
+    - cli
+    - config
+    - ui

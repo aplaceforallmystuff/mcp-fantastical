@@ -8,7 +8,12 @@
  * Requirements:
  * - macOS only
  * - Fantastical installed
- * - Accessibility permissions for osascript
+ * - For reading events: macOS Calendar app automation permissions
+ *   (System Settings → Privacy & Security → Automation → [your terminal/app] → Calendar)
+ *
+ * Note: Event creation uses Fantastical's URL scheme and doesn't require Calendar permissions.
+ * Reading events (get_today, get_upcoming, get_calendars) uses the macOS Calendar app
+ * since Fantastical's AppleScript interface doesn't support querying events.
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -22,6 +27,33 @@ import { exec } from "child_process";
 import { promisify } from "util";
 
 const execAsync = promisify(exec);
+
+// Error codes
+const CALENDAR_PERMISSION_ERROR = -1743;
+
+// Helper to check if error is a Calendar permission error
+function isCalendarPermissionError(error: unknown): boolean {
+  if (error instanceof Error) {
+    return error.message.includes('-1743') ||
+           error.message.includes('Not authorised to send Apple events to Calendar');
+  }
+  return false;
+}
+
+// User-friendly error message for Calendar permission issues
+const CALENDAR_PERMISSION_MESSAGE = `Calendar app permission denied.
+
+This tool reads events from the macOS Calendar app (which Fantastical syncs with).
+To fix this, grant Calendar automation permission:
+
+1. Open System Settings → Privacy & Security → Automation
+2. Find the app running this MCP server (e.g., Terminal, iTerm, VS Code, or Node)
+3. Enable the "Calendar" toggle
+
+Note: If running in a subprocess (like Claude Code), you may need to grant permission
+to the parent application or the Node.js process itself.
+
+As a workaround, I can open Fantastical to show your calendar instead.`;
 
 // Helper to run AppleScript
 async function runAppleScript(script: string): Promise<string> {
@@ -55,6 +87,13 @@ async function runAppleScriptMultiline(script: string): Promise<string> {
     }
     throw error;
   }
+}
+
+// Helper to open Fantastical via URL scheme
+// Note: Do NOT use AppleScript `parse sentence` for navigation - it types into the event
+// creation dialog instead of navigating. URL schemes are the correct approach.
+async function openFantasticalUrl(url: string): Promise<void> {
+  await execAsync(`open "${url}"`);
 }
 
 // Check if Fantastical is installed
@@ -97,7 +136,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: "fantastical_get_today",
-    description: "Get today's calendar events from Fantastical",
+    description: "Get today's calendar events. Note: Reads from macOS Calendar app (synced with Fantastical). Requires Calendar automation permission.",
     inputSchema: {
       type: "object" as const,
       properties: {},
@@ -106,7 +145,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: "fantastical_get_upcoming",
-    description: "Get upcoming calendar events from Fantastical",
+    description: "Get upcoming calendar events. Note: Reads from macOS Calendar app (synced with Fantastical). Requires Calendar automation permission.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -134,7 +173,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: "fantastical_get_calendars",
-    description: "List all available calendars in Fantastical",
+    description: "List all available calendars. Note: Reads from macOS Calendar app (synced with Fantastical). Requires Calendar automation permission.",
     inputSchema: {
       type: "object" as const,
       properties: {},
@@ -203,9 +242,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         const url = `x-fantastical3://parse?${params.toString()}`;
-        const script = `do shell script "open '${url}'"`;
-
-        await runAppleScript(script);
+        await openFantasticalUrl(url);
 
         return {
           content: [{
@@ -248,26 +285,41 @@ tell application "Calendar"
 end tell
 return output`;
 
-        const result = await runAppleScriptMultiline(script);
-        const events = result
-          .split("\n")
-          .filter(line => line.trim())
-          .map(line => {
-            const [calendar, title, start, end, location] = line.split("|");
-            return { calendar, title, start, end, location: location || "" };
-          })
-          .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+        try {
+          const result = await runAppleScriptMultiline(script);
+          const events = result
+            .split("\n")
+            .filter(line => line.trim())
+            .map(line => {
+              const [calendar, title, start, end, location] = line.split("|");
+              return { calendar, title, start, end, location: location || "" };
+            })
+            .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              date: new Date().toISOString().split("T")[0],
-              count: events.length,
-              events,
-            }, null, 2),
-          }],
-        };
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                date: new Date().toISOString().split("T")[0],
+                count: events.length,
+                events,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          if (isCalendarPermissionError(error)) {
+            // Offer to open Fantastical as a fallback (use URL scheme, not parse sentence)
+            await openFantasticalUrl('x-fantastical3://show/calendar/today');
+            return {
+              content: [{
+                type: "text",
+                text: CALENDAR_PERMISSION_MESSAGE + "\n\nFallback: Opened Fantastical to today's view.",
+              }],
+              isError: true,
+            };
+          }
+          throw error;
+        }
       }
 
       case "fantastical_get_upcoming": {
@@ -301,38 +353,52 @@ tell application "Calendar"
 end tell
 return output`;
 
-        const result = await runAppleScriptMultiline(script);
-        const events = result
-          .split("\n")
-          .filter(line => line.trim())
-          .map(line => {
-            const [calendar, title, start, end, location] = line.split("|");
-            return { calendar, title, start, end, location: location || "" };
-          })
-          .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+        try {
+          const result = await runAppleScriptMultiline(script);
+          const events = result
+            .split("\n")
+            .filter(line => line.trim())
+            .map(line => {
+              const [calendar, title, start, end, location] = line.split("|");
+              return { calendar, title, start, end, location: location || "" };
+            })
+            .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              range: {
-                start: today.toISOString().split("T")[0],
-                end: endDate.toISOString().split("T")[0],
-                days,
-              },
-              count: events.length,
-              events,
-            }, null, 2),
-          }],
-        };
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                range: {
+                  start: today.toISOString().split("T")[0],
+                  end: endDate.toISOString().split("T")[0],
+                  days,
+                },
+                count: events.length,
+                events,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          if (isCalendarPermissionError(error)) {
+            // Offer to open Fantastical as a fallback (use URL scheme, not parse sentence)
+            await openFantasticalUrl('x-fantastical3://show/calendar/today');
+            return {
+              content: [{
+                type: "text",
+                text: CALENDAR_PERMISSION_MESSAGE + "\n\nFallback: Opened Fantastical to today's view.",
+              }],
+              isError: true,
+            };
+          }
+          throw error;
+        }
       }
 
       case "fantastical_show_date": {
         const { date } = args as { date: string };
 
-        // Use URL scheme to show date in Fantastical
-        const script = `do shell script "open 'x-fantastical3://show/calendar/${encodeURIComponent(date)}'"`;
-        await runAppleScript(script);
+        // Use URL scheme to show date in Fantastical (not parse sentence which types into event dialog)
+        await openFantasticalUrl(`x-fantastical3://show/calendar/${encodeURIComponent(date)}`);
 
         return {
           content: [{
@@ -357,29 +423,41 @@ tell application "Calendar"
 end tell
 return output`;
 
-        const result = await runAppleScriptMultiline(script);
-        const calendars = result
-          .split("\n")
-          .filter(line => line.trim())
-          .map(name => ({ name }));
+        try {
+          const result = await runAppleScriptMultiline(script);
+          const calendars = result
+            .split("\n")
+            .filter(line => line.trim())
+            .map(name => ({ name }));
 
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              count: calendars.length,
-              calendars,
-            }, null, 2),
-          }],
-        };
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                count: calendars.length,
+                calendars,
+              }, null, 2),
+            }],
+          };
+        } catch (error) {
+          if (isCalendarPermissionError(error)) {
+            return {
+              content: [{
+                type: "text",
+                text: CALENDAR_PERMISSION_MESSAGE,
+              }],
+              isError: true,
+            };
+          }
+          throw error;
+        }
       }
 
       case "fantastical_search": {
         const { query } = args as { query: string };
 
-        // Search using URL scheme which opens Fantastical's search
-        const script = `do shell script "open 'x-fantastical3://search?query=${encodeURIComponent(query)}'"`;
-        await runAppleScript(script);
+        // Search using URL scheme which opens Fantastical's search (not parse sentence)
+        await openFantasticalUrl(`x-fantastical3://search?query=${encodeURIComponent(query)}`);
 
         return {
           content: [{

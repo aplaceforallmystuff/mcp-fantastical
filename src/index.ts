@@ -89,6 +89,13 @@ async function runAppleScriptMultiline(script: string): Promise<string> {
   }
 }
 
+// Helper to open Fantastical via URL scheme
+// Note: Do NOT use AppleScript `parse sentence` for navigation - it types into the event
+// creation dialog instead of navigating. URL schemes are the correct approach.
+async function openFantasticalUrl(url: string): Promise<void> {
+  await execAsync(`open "${url}"`);
+}
+
 // Check if Fantastical is installed
 async function checkFantasticalInstalled(): Promise<boolean> {
   try {
@@ -235,9 +242,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         const url = `x-fantastical3://parse?${params.toString()}`;
-        const script = `do shell script "open '${url}'"`;
-
-        await runAppleScript(script);
+        await openFantasticalUrl(url);
 
         return {
           content: [{
@@ -303,8 +308,8 @@ return output`;
           };
         } catch (error) {
           if (isCalendarPermissionError(error)) {
-            // Offer to open Fantastical as a fallback
-            await runAppleScript('do shell script "open \'x-fantastical3://show/calendar/today\'"');
+            // Offer to open Fantastical as a fallback (use URL scheme, not parse sentence)
+            await openFantasticalUrl('x-fantastical3://show/calendar/today');
             return {
               content: [{
                 type: "text",
@@ -375,8 +380,8 @@ return output`;
           };
         } catch (error) {
           if (isCalendarPermissionError(error)) {
-            // Offer to open Fantastical as a fallback
-            await runAppleScript('do shell script "open \'x-fantastical3://show/calendar/today\'"');
+            // Offer to open Fantastical as a fallback (use URL scheme, not parse sentence)
+            await openFantasticalUrl('x-fantastical3://show/calendar/today');
             return {
               content: [{
                 type: "text",
@@ -392,9 +397,8 @@ return output`;
       case "fantastical_show_date": {
         const { date } = args as { date: string };
 
-        // Use URL scheme to show date in Fantastical
-        const script = `do shell script "open 'x-fantastical3://show/calendar/${encodeURIComponent(date)}'"`;
-        await runAppleScript(script);
+        // Use URL scheme to show date in Fantastical (not parse sentence which types into event dialog)
+        await openFantasticalUrl(`x-fantastical3://show/calendar/${encodeURIComponent(date)}`);
 
         return {
           content: [{
@@ -452,9 +456,8 @@ return output`;
       case "fantastical_search": {
         const { query } = args as { query: string };
 
-        // Search using URL scheme which opens Fantastical's search
-        const script = `do shell script "open 'x-fantastical3://search?query=${encodeURIComponent(query)}'"`;
-        await runAppleScript(script);
+        // Search using URL scheme which opens Fantastical's search (not parse sentence)
+        await openFantasticalUrl(`x-fantastical3://search?query=${encodeURIComponent(query)}`);
 
         return {
           content: [{

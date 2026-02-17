@@ -30,7 +30,7 @@ MCP server for [Fantastical](https://flexibits.com/fantastical) - the powerful c
 - macOS (Fantastical is macOS-only)
 - Node.js 18+
 - [Fantastical](https://flexibits.com/fantastical) installed
-- Calendar access permissions for Terminal/Claude
+- **For reading events**: macOS Calendar app Automation permissions (see [Permissions](#permissions))
 
 ## Installation
 
@@ -87,9 +87,18 @@ Add to `~/.claude.json`:
 
 ### Permissions
 
-On first run, you may need to grant accessibility permissions:
-1. System Preferences → Privacy & Security → Accessibility
-2. Add Terminal (or your terminal app) to the allowed list
+**Event creation** (`fantastical_create_event`) and **navigation** (`fantastical_show_date`, `fantastical_search`) use Fantastical's URL scheme and don't require special permissions.
+
+**Reading events** (`fantastical_get_today`, `fantastical_get_upcoming`, `fantastical_get_calendars`) uses the macOS Calendar app (which Fantastical syncs with) and requires Automation permissions:
+
+1. Open **System Settings → Privacy & Security → Automation**
+2. Find the app running the MCP server (Terminal, iTerm, VS Code, etc.)
+3. Enable the **Calendar** toggle
+
+**Note for MCP subprocess environments** (like Claude Code):
+- macOS Automation permissions may not inherit properly to subprocesses
+- You may need to grant permission to the Node.js process itself
+- If permissions can't be granted, the tools will show a helpful error and offer to open Fantastical as a fallback
 
 ## Usage Examples
 
@@ -141,7 +150,22 @@ node dist/index.js
 
 ## Troubleshooting
 
-### "AppleScript error: Not authorized to send Apple events"
+### "AppleScript error: Not authorised to send Apple events to Calendar" (-1743)
+
+This error occurs when reading events (get_today, get_upcoming, get_calendars). The tools read from the macOS Calendar app.
+
+**Fix:**
+1. Open **System Settings → Privacy & Security → Automation**
+2. Find the app running the MCP server (Terminal, iTerm, VS Code, Cursor, etc.)
+3. Enable the **Calendar** toggle
+
+**If running in Claude Code or similar MCP environments:**
+- The subprocess may not inherit permissions from the parent terminal
+- Try running `osascript -e 'tell application "Calendar" to get calendars'` directly in terminal to trigger the permission prompt
+- If that works but MCP still fails, try restarting the MCP server
+- As a last resort, use `fantastical_show_date` to navigate Fantastical manually
+
+### "AppleScript error: Not authorized to send Apple events" (general)
 Grant accessibility permissions:
 1. Open System Preferences → Privacy & Security → Accessibility
 2. Click the lock to make changes

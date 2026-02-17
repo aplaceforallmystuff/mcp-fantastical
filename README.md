@@ -43,7 +43,7 @@ npx mcp-fantastical
 ### From Source
 
 ```bash
-git clone https://github.com/jmchristian/mcp-fantastical.git
+git clone https://github.com/aplaceforallmystuff/mcp-fantastical.git
 cd mcp-fantastical
 npm install
 npm run build

@@ -20,8 +20,25 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 
 const execAsync = promisify(exec);
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const NATIVE_HELPER_PATH = join(__dirname, "native", "fantastical-helper");
+
+async function runNativeHelper(command: string, arg?: string): Promise<string | null> {
+  try {
+    const cmd = arg ? `${NATIVE_HELPER_PATH} ${command} ${arg}` : `${NATIVE_HELPER_PATH} ${command}`;
+    const { stdout } = await execAsync(cmd, { timeout: 10000 });
+    return stdout.trim();
+  } catch {
+    return null;
+  }
+}
 
 // Helper to run AppleScript
 async function runAppleScript(script: string): Promise<string> {
@@ -221,8 +238,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "fantastical_get_today": {
-        // Get events using Calendar app (Fantastical syncs with it)
-        // Use current date as reference to avoid locale parsing issues
+        // Try native EventKit helper first (faster, no AppleScript permission issues)
+        const nativeResult = await runNativeHelper("today");
+        if (nativeResult) {
+          return {
+            content: [{
+              type: "text",
+              text: nativeResult,
+            }],
+          };
+        }
+
+        // Fallback to AppleScript
         const script = `
 set output to ""
 set todayStart to current date
@@ -273,6 +300,18 @@ return output`;
       case "fantastical_get_upcoming": {
         const { days = 7 } = args as { days?: number };
 
+        // Try native EventKit helper first (faster, no AppleScript permission issues)
+        const nativeResult = await runNativeHelper("upcoming", String(days));
+        if (nativeResult) {
+          return {
+            content: [{
+              type: "text",
+              text: nativeResult,
+            }],
+          };
+        }
+
+        // Fallback to AppleScript
         const today = new Date();
         const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + days);
 
@@ -346,6 +385,18 @@ return output`;
       }
 
       case "fantastical_get_calendars": {
+        // Try native EventKit helper first (faster, no AppleScript permission issues)
+        const nativeResult = await runNativeHelper("calendars");
+        if (nativeResult) {
+          return {
+            content: [{
+              type: "text",
+              text: nativeResult,
+            }],
+          };
+        }
+
+        // Fallback to AppleScript
         const script = `
 set output to ""
 tell application "Calendar"

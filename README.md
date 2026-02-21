@@ -51,7 +51,11 @@ npm run build
 
 ## Configuration
 
-No API keys required - this server uses AppleScript to communicate with Fantastical and the Calendar app.
+This server uses a hybrid approach for optimal performance and compatibility:
+- **EventKit (preferred)**: Native Swift helper for fast, reliable calendar access
+- **AppleScript (fallback)**: Used if the native helper is unavailable
+
+No API keys required.
 
 ### For Claude Desktop
 
@@ -87,9 +91,17 @@ Add to `~/.claude.json`:
 
 ### Permissions
 
-On first run, you may need to grant accessibility permissions:
+On first run, you may need to grant the following permissions:
+
+**Accessibility (for event creation via URL scheme):**
 1. System Preferences → Privacy & Security → Accessibility
 2. Add Terminal (or your terminal app) to the allowed list
+
+**Full Calendar Access (for reading events):**
+1. System Preferences → Privacy & Security → Calendars
+2. Grant "Full Calendar Access" to your terminal app or the process running the MCP server
+
+Note: On macOS Sonoma and later, reading calendar events via AppleScript may fail with permission errors when running in subprocess contexts (e.g., MCP servers spawned by Claude). The native EventKit helper resolves this by using a different permission model.
 
 ## Usage Examples
 
@@ -147,6 +159,14 @@ Grant accessibility permissions:
 2. Click the lock to make changes
 3. Add Terminal (or your terminal app) and enable it
 
+### Calendar permission errors (-1743) or timeouts when reading events
+This occurs when the MCP server runs in a subprocess context (e.g., spawned by Claude Code or other MCP clients). macOS TCC permissions don't properly inherit through process chains.
+
+**Solutions:**
+1. **Recommended**: The native EventKit helper (`dist/native/fantastical-helper`) handles this automatically. Rebuild with `npm run build` to compile it.
+2. Grant "Full Calendar Access" in System Settings → Privacy & Security → Calendars to the terminal app
+3. If running from source, ensure the Swift helper is compiled: `npm run build:native`
+
 ### "Error: This MCP server only works on macOS"
 This server requires macOS because Fantastical is a macOS application. It uses AppleScript to communicate with Fantastical and the Calendar app.
 
@@ -154,6 +174,7 @@ This server requires macOS because Fantastical is a macOS application. It uses A
 - Ensure Fantastical is syncing with iCloud/Calendar
 - Check that Calendar.app has access to the same calendars
 - Verify the event was created in the correct calendar
+- Grant Full Calendar Access (see above)
 
 ### Fantastical not opening
 - Ensure Fantastical is installed

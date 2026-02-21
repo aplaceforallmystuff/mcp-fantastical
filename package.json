@@ -1,6 +1,6 @@
 {
   "name": "mcp-fantastical",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "mcpName": "io.github.jmchristian/mcp-fantastical",
   "description": "MCP server for Fantastical calendar app - create events, view calendar, and manage schedules",
   "main": "dist/index.js",
@@ -13,7 +13,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build:native": "./native/build.sh",
+    "build": "tsc && npm run build:native",
     "watch": "tsc --watch",
     "prepublishOnly": "npm run build"
   },
@@ -25,7 +26,8 @@
     "claude",
     "ai",
     "applescript",
-    "macos"
+    "macos",
+    "eventkit"
   ],
   "author": "Jim Christian",
   "license": "MIT",

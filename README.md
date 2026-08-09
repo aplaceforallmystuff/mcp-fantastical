@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/aplaceforallmystuff-mcp-fantastical-badge.png)](https://mseep.ai/app/aplaceforallmystuff-mcp-fantastical)
+
 # MCP Fantastical Server
 
 [![npm version](https://img.shields.io/npm/v/mcp-fantastical.svg)](https://www.npmjs.com/package/mcp-fantastical)

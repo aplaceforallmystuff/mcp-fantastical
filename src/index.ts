@@ -41,7 +41,11 @@ function shellQuote(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`;
 }
 
-async function runNativeHelper(command: string, arg?: string): Promise<string | null> {
+async function runNativeHelper(
+  command: string,
+  arg?: string,
+  flags?: Record<string, string | undefined>,
+): Promise<string | null> {
   // Create a per-invocation temp directory for the JSON output, so concurrent
   // calls can't collide and we always clean up.
   const workDir = mkdtempSync(join(tmpdir(), "mcp-fantastical-"));
@@ -50,6 +54,13 @@ async function runNativeHelper(command: string, arg?: string): Promise<string | 
   try {
     const helperArgs = [command];
     if (arg) helperArgs.push(arg);
+    if (flags) {
+      for (const [key, value] of Object.entries(flags)) {
+        if (value !== undefined && value !== null && value !== "") {
+          helperArgs.push(`--${key}`, String(value));
+        }
+      }
+    }
     helperArgs.push("--output", outputPath);
 
     const quotedArgs = helperArgs.map(shellQuote).join(" ");
@@ -204,6 +215,67 @@ const TOOLS: Tool[] = [
         },
       },
       required: ["query"],
+    },
+  },
+  {
+    name: "fantastical_find_events",
+    description: "Find events whose title matches a query and return their identifiers, so they can be updated or deleted. Searches a ±N day window via EventKit. Returns each event's stable 'id' for use with fantastical_update_event / fantastical_delete_event.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        query: {
+          type: "string",
+          description: "Case-insensitive substring to match against event titles",
+        },
+        days: {
+          type: "number",
+          description: "Search window in days, both past and future (default: 30)",
+        },
+        calendar: {
+          type: "string",
+          description: "Optional: restrict the search to a single calendar by name",
+        },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "fantastical_update_event",
+    description: "Update an existing calendar event (reschedule, rename, move calendars, change location/notes). Requires the event 'id' from fantastical_find_events. Only the fields you provide are changed.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: {
+          type: "string",
+          description: "The event identifier (from fantastical_find_events)",
+        },
+        title: { type: "string", description: "New title" },
+        start: { type: "string", description: "New start time, ISO 8601 (e.g. 2026-06-02T15:00:00Z)" },
+        end: { type: "string", description: "New end time, ISO 8601 (e.g. 2026-06-02T16:00:00Z)" },
+        location: { type: "string", description: "New location" },
+        notes: { type: "string", description: "New notes" },
+        calendar: { type: "string", description: "Move the event to this calendar (by name)" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "fantastical_delete_event",
+    description: "Delete a calendar event. Requires the event 'id' from fantastical_find_events. For recurring events, span 'thisEvent' deletes only this occurrence (default); 'futureEvents' deletes this and all future occurrences.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: {
+          type: "string",
+          description: "The event identifier (from fantastical_find_events)",
+        },
+        span: {
+          type: "string",
+          enum: ["thisEvent", "futureEvents"],
+          description: "For recurring events: delete only this occurrence or this and all future (default: thisEvent)",
+        },
+      },
+      required: ["id"],
     },
   },
 ];
@@ -475,6 +547,86 @@ return output`;
             }, null, 2),
           }],
         };
+      }
+
+      case "fantastical_find_events": {
+        const { query, days, calendar } = args as {
+          query: string;
+          days?: number;
+          calendar?: string;
+        };
+
+        const result = await runNativeHelper("find", undefined, {
+          query,
+          days: days !== undefined ? String(days) : undefined,
+          calendar,
+        });
+
+        if (!result) {
+          throw new Error(
+            "Native EventKit helper failed. Finding events requires the FantasticalHelper " +
+            "with Calendar access (System Settings > Privacy & Security > Calendars).",
+          );
+        }
+
+        return { content: [{ type: "text", text: result }] };
+      }
+
+      case "fantastical_update_event": {
+        const { id, title, start, end, location, notes, calendar } = args as {
+          id: string;
+          title?: string;
+          start?: string;
+          end?: string;
+          location?: string;
+          notes?: string;
+          calendar?: string;
+        };
+
+        const result = await runNativeHelper("update", undefined, {
+          id, title, start, end, location, notes, calendar,
+        });
+
+        if (!result) {
+          throw new Error(
+            "Native EventKit helper failed. Updating events requires the FantasticalHelper " +
+            "with Calendar access (System Settings > Privacy & Security > Calendars).",
+          );
+        }
+
+        // Surface helper-level errors (bad id, invalid date, etc.) as tool errors.
+        const parsed = JSON.parse(result);
+        if (parsed.error) {
+          return {
+            content: [{ type: "text", text: `Error: ${parsed.error}` }],
+            isError: true,
+          };
+        }
+
+        return { content: [{ type: "text", text: result }] };
+      }
+
+      case "fantastical_delete_event": {
+        const { id, span } = args as { id: string; span?: string };
+
+        const result = await runNativeHelper("delete", undefined, { id, span });
+
+        if (!result) {
+          throw new Error(
+            "Native EventKit helper failed. Deleting events requires the FantasticalHelper " +
+            "with Calendar access (System Settings > Privacy & Security > Calendars).",
+          );
+        }
+
+        const parsed = JSON.parse(result);
+        if (parsed.error) {
+          return {
+            content: [{ type: "text", text: `Error: ${parsed.error}` }],
+            isError: true,
+          };
+        }
+
+        return { content: [{ type: "text", text: result }] };
       }
 
       default:

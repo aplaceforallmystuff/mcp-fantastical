@@ -253,7 +253,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           params.append("n", notes);
         }
 
-        const url = `x-fantastical3://parse?${params.toString()}`;
+        // URLSearchParams.toString() form-encodes spaces as "+", which the
+        // x-fantastical3:// handler does not decode, so the parser receives
+        // literal "+" characters and natural-language parsing fails.
+        const url = `x-fantastical3://parse?${params.toString().replace(/\+/g, "%20")}`;
         const script = `do shell script "open '${url}'"`;
 
         await runAppleScript(script);

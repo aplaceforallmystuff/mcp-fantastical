@@ -2,7 +2,7 @@
 
 ## Getting Started
 
-Fork the repository and clone your fork with HTTPS. Use macOS with Node.js 18 or later and Fantastical installed. Install dependencies with `npm ci`, then create a branch for your change.
+Fork the repository and clone your fork with HTTPS. Use macOS with Node.js 20 or later and Fantastical installed. Install dependencies with `npm ci`, then create a branch for your change.
 
 ## Development
 

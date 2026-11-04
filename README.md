@@ -144,8 +144,11 @@ Note: Prior versions shipped a raw helper binary, which macOS couldn't attribute
 # Watch mode for development
 npm run watch
 
-# Build TypeScript
+# Build TypeScript and the native macOS helper
 npm run build
+
+# Run regression tests (no calendar changes)
+npm test
 
 # Run locally
 node dist/index.js
@@ -181,6 +184,10 @@ This server requires macOS because Fantastical is a macOS application. It uses A
 - Ensure Fantastical is installed
 - Try opening Fantastical manually first
 - Check that URL schemes are enabled in Fantastical preferences
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and verification.
 
 ## License
 

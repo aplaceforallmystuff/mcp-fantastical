@@ -1,6 +1,6 @@
 {
   "name": "mcp-fantastical",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "mcpName": "io.github.aplaceforallmystuff/mcp-fantastical",
   "description": "MCP server for Fantastical calendar app - create events, view calendar, and manage schedules",
   "main": "dist/index.js",
@@ -16,7 +16,8 @@
     "build:native": "./native/build.sh",
     "build": "tsc && npm run build:native",
     "watch": "tsc --watch",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "node --test test/*.test.cjs"
   },
   "keywords": [
     "mcp",

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-11-04
+
+### Fixed
+- Percent-encode spaces in Fantastical event sentences, calendar names and notes, preserving literal plus signs (community PR #25 by @mattiacolombomc).
+- Refresh compatible dependencies to clear the release security audit.
+
+### Added
+- Handler regression tests for URL encoding, reserved characters and optional immediate creation.
+
 ## [1.2.0] - 2026-04-20
 
 ### Fixed

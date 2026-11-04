@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [1.2.1] - 2026-11-04
 
+### Changed
+- Require Node.js 20 or later to match the secure `@hono/node-server` 2.x dependency. Node.js 18 users must upgrade Node.js before installing this release.
+- Refresh dependencies, combining Dependabot updates for body-parser, ip-address, fast-uri, hono and @hono/node-server; keep the audited adapter at 2.1.6.
+
 ### Fixed
 - Percent-encode spaces in Fantastical event sentences, calendar names and notes, preserving literal plus signs (community PR #25 by @mattiacolombomc).
 - Refresh compatible dependencies to clear the release security audit.

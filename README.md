@@ -28,7 +28,7 @@ MCP server for [Fantastical](https://flexibits.com/fantastical) - the powerful c
 ## Prerequisites
 
 - macOS (Fantastical is macOS-only)
-- Node.js 18+
+- Node.js 20+
 - [Fantastical](https://flexibits.com/fantastical) installed
 - Calendar access permissions for Terminal/Claude
 
